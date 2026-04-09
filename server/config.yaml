@@ -1,0 +1,6 @@
+app:
+  url: "http:localhost:5173"
+
+server:
+  name: "coduflow-api"
+  port: 8080

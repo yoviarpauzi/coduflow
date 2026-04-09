@@ -1,0 +1,78 @@
+services:
+  mongo-init-keyfile:
+    image: mongodb/mongodb-community-server:7.0-ubi8
+    user: root
+    volumes:
+      - keyfile_data:/data/keyfile
+    entrypoint:
+      [
+        "/bin/bash",
+        "-c",
+        "openssl rand -base64 756 > /data/keyfile/keyfile.key && chmod 400 /data/keyfile/keyfile.key && chown 998:996 /data/keyfile/keyfile.key && ls -la /data/keyfile/ && echo SUCCESS",
+      ]
+    restart: "no"
+
+  mongodb:
+    container_name: coduflow-mongodb
+    image: mongodb/mongodb-community-server:7.0-ubi8
+    ports:
+      - "27017:27017"
+    env_file:
+      - .env
+    environment:
+      MONGODB_INITDB_ROOT_USERNAME: ${DB_USER}
+      MONGODB_INITDB_ROOT_PASSWORD: ${DB_PASSWORD}
+      MONGODB_INITDB_DATABASE: ${DB_NAME}
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      - keyfile_data:/data/keyfile
+    command:
+      [
+        "mongod",
+        "--replSet",
+        "rs0",
+        "--keyFile",
+        "/data/keyfile/keyfile.key",
+        "--bind_ip_all",
+      ]
+    depends_on:
+      mongo-init-keyfile:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mongosh",
+          "-u",
+          "${DB_USER}",
+          "-p",
+          "${DB_PASSWORD}",
+          "--eval",
+          "try { rs.status() } catch(err) { rs.initiate({_id:'rs0',members:[{_id:0,host:'localhost:27017'}]}) }",
+        ]
+      interval: 5s
+      timeout: 30s
+      start_period: 10s
+      retries: 30
+    restart: unless-stopped
+
+  redis:
+    container_name: coduflow-redis
+    image: redis:8.6.1
+    ports:
+      - "6379:6379"
+    env_file:
+      - .env
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
+
+volumes:
+  mongodb_data:
+  mongodb_config:
+  keyfile_data:
+  redis_data:

@@ -1,0 +1,181 @@
+### Test HTTP requests for Coduflow Task API
+### Server runs on http://localhost:8080
+
+### 1. Create a new task
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Implement user authentication",
+  "status": "TODO",
+  "priority": 1,
+  "estimated_time": 120,
+  "logged_time": 0,
+  "due_date": "2024-12-31T23:59:59Z"
+}
+
+### 2. Create another task with minimal fields
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Write API documentation",
+  "status": "TODO"
+}
+
+### 3. Create task with DOING status
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Fix login bug",
+  "status": "DOING",
+  "priority": 2,
+  "estimated_time": 60,
+  "logged_time": 30
+}
+
+### 4. Create task with COMPLETE status
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Setup CI/CD pipeline",
+  "status": "COMPLETE",
+  "priority": 3,
+  "estimated_time": 180,
+  "logged_time": 200
+}
+
+### 5. Update task status (replace :id with actual task ID from response)
+PATCH http://localhost:8080/api/v1/task/69d49d2d79471fc338e87de9/status
+Content-Type: application/json
+
+{
+  "status": "DOING"
+}
+
+### 6. Update task status to COMPLETE
+PATCH http://localhost:8080/api/v1/task/69d49d2d79471fc338e87de9/status
+Content-Type: application/json
+
+{
+  "status": "COMPLETE"
+}
+
+### 7. Delete a task (replace :id with actual task ID from response)
+DELETE http://localhost:8080/api/v1/task/:id
+
+### 8. Test validation error - missing required field
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "status": "TODO"
+}
+
+### 9. Test validation error - invalid status
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Invalid task",
+  "status": "INVALID_STATUS"
+}
+
+### 10. Test validation error - invalid priority
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Task with invalid priority",
+  "status": "TODO",
+  "priority": 10
+}
+
+### 11. Test validation error - negative estimated time
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Task with negative time",
+  "status": "TODO",
+  "estimated_time": -10
+}
+
+### 12. Update status with invalid ID format
+PATCH http://localhost:8080/api/v1/task/invalid-id/status
+Content-Type: application/json
+
+{
+  "status": "DOING"
+}
+
+### 13. Delete with invalid ID format
+DELETE http://localhost:8080/api/v1/task/invalid-id
+
+### 14. Update status of non-existent task (use valid ObjectID format)
+PATCH http://localhost:8080/api/v1/task/507f1f77bcf86cd799439011/status
+Content-Type: application/json
+
+{
+  "status": "DOING"
+}
+
+### 15. Delete non-existent task (use valid ObjectID format)
+DELETE http://localhost:8080/api/v1/task/507f1f77bcf86cd799439011
+
+### 16. Test with optional fields omitted
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Task with only required fields",
+  "status": "TODO",
+  "priority": null,
+  "estimated_time": null,
+  "logged_time": null,
+  "due_date": null
+}
+
+### 17. Test with future due date
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Task with future deadline",
+  "status": "TODO",
+  "due_date": "2025-06-30T18:00:00Z"
+}
+
+### 18. Test with past due date
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Overdue task",
+  "status": "TODO",
+  "due_date": "2023-01-01T00:00:00Z"
+}
+
+### 19. Test with zero time values
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Task with zero time",
+  "status": "TODO",
+  "estimated_time": 0,
+  "logged_time": 0
+}
+
+### 20. Test with large time values
+POST http://localhost:8080/api/v1/task
+Content-Type: application/json
+
+{
+  "name": "Long running task",
+  "status": "TODO",
+  "estimated_time": 9999,
+  "logged_time": 5000
+}
