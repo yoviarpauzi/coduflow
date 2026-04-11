@@ -18,7 +18,7 @@ const SortableStatus = ({
   isStatusDragging,
   onMeasureTaskWidth,
   onAddTask,
-  ondeleteTaskStatus,
+  onDeleteTaskStatus,
   onEditTaskStatus,
 }: {
   status: TaskStatus;
@@ -26,7 +26,7 @@ const SortableStatus = ({
   isStatusDragging: boolean;
   onMeasureTaskWidth: (width: number) => void;
   onAddTask: (statusId: string) => void;
-  ondeleteTaskStatus: (statusId: string) => void;
+  onDeleteTaskStatus: (statusId: string) => void;
   onEditTaskStatus?: (taskStatus: TaskStatus) => void;
 }) => {
   const {
@@ -77,7 +77,7 @@ const SortableStatus = ({
             variant="ghost"
             size="icon"
             className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => ondeleteTaskStatus(status.id)}
+            onClick={() => onDeleteTaskStatus(status.id)}
           >
             <Trash2 className="size-3.5" />
           </Button>

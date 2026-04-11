@@ -1,17 +1,21 @@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { createFileRoute } from "@tanstack/react-router";
-import { KanbanBoard } from "@/components/kanban-board";
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { getTaskStatus } from "@/lib/api/task-status";
-import { useTaskStatusMutation } from "@/hooks/use-task-status-mutation";
-import { TasksToolbar } from "@/components/tasks-toolbar";
+import { TaskKanbanBoard } from "@/components/sections/tasks/task-kanban-board";
+import { TasksToolbar } from "@/components/sections/tasks/tasks-toolbar";
+import { useCreateTaskStatusDialog } from "@/hooks/use-create-task-status-dialog";
+import type { ReactNode } from "react";
 
 const TASK_VIEW_TABS = [
-  { value: "board", label: "Board" },
-  { value: "list", label: "List" },
-  { value: "table", label: "Table" },
+  { value: "board", label: "Board", content: <TaskKanbanBoard /> },
+  { value: "list", label: "List", content: <div>List View</div> },
+  { value: "table", label: "Table", content: <div>Table View</div> },
 ] as const;
+
+type TaskViewTab = {
+  value: (typeof TASK_VIEW_TABS)[number]["value"];
+  label: string;
+  content: ReactNode;
+};
 
 export const Route = createFileRoute("/_app/tasks")({
   component: RouteComponent,
@@ -23,49 +27,7 @@ export const Route = createFileRoute("/_app/tasks")({
 });
 
 function RouteComponent() {
-  const [isTaskStatusDialogOpen, setIsTaskStatusDialogOpen] = useState(false);
-  const [taskStatusTitle, setTaskStatusTitle] = useState("");
-  const [taskStatusIsComplete, setTaskStatusIsComplete] = useState(false);
-  const { createStatus, isCreating } = useTaskStatusMutation();
-
-  const { data: taskStatuses } = useQuery({
-    queryKey: ["statuses"],
-    queryFn: getTaskStatus,
-  });
-
-  const resetTaskStatusDialogState = () => {
-    setTaskStatusTitle("");
-    setTaskStatusIsComplete(false);
-  };
-
-  const handleTaskStatusDialogOpenChange = (open: boolean) => {
-    setIsTaskStatusDialogOpen(open);
-    if (!open) {
-      resetTaskStatusDialogState();
-    }
-  };
-
-  const openCreateTaskStatusDialog = () => {
-    resetTaskStatusDialogState();
-    handleTaskStatusDialogOpenChange(true);
-  };
-
-  const submitTaskStatus = () => {
-    const trimmedTitle = taskStatusTitle.trim();
-    if (!trimmedTitle) return;
-    createStatus(
-      {
-        title: trimmedTitle,
-        position: (taskStatuses?.length || 0) + 1,
-        isComplete: taskStatusIsComplete,
-      },
-      {
-        onSuccess: () => {
-          handleTaskStatusDialogOpenChange(false);
-        },
-      },
-    );
-  };
+  const vm = useCreateTaskStatusDialog();
 
   return (
     <main>
@@ -84,31 +46,15 @@ function RouteComponent() {
               </TabsTrigger>
             ))}
           </TabsList>
-          <TasksToolbar
-            isTaskStatusDialogOpen={isTaskStatusDialogOpen}
-            onTaskStatusDialogOpenChange={handleTaskStatusDialogOpenChange}
-            onOpenCreateTaskStatusDialog={openCreateTaskStatusDialog}
-            taskStatusTitle={taskStatusTitle}
-            setTaskStatusTitle={setTaskStatusTitle}
-            taskStatusIsComplete={taskStatusIsComplete}
-            setTaskStatusIsComplete={setTaskStatusIsComplete}
-            onSubmitTaskStatus={submitTaskStatus}
-            isCreatingTaskStatus={isCreating}
-          />
+          <TasksToolbar taskStatusDialog={vm.taskStatusDialog} />
         </div>
 
         <div className="mt-4">
-          <TabsContent value="board">
-            <KanbanBoard />
-          </TabsContent>
-
-          <TabsContent value="list">
-            <div>List View</div>
-          </TabsContent>
-
-          <TabsContent value="table">
-            <div>Table View</div>
-          </TabsContent>
+          {(TASK_VIEW_TABS as readonly TaskViewTab[]).map((tab) => (
+            <TabsContent key={tab.value} value={tab.value}>
+              {tab.content}
+            </TabsContent>
+          ))}
         </div>
       </Tabs>
     </main>

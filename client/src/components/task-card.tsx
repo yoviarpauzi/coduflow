@@ -1,9 +1,7 @@
-import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Play, Pause } from "lucide-react";
 import type { Task, TaskPriority } from "@/types/task";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateTaskLoggedTime } from "@/lib/api/task";
+import { useTaskTimer } from "@/hooks/use-task-timer";
 
 export const TaskCard = ({
   task,
@@ -12,44 +10,15 @@ export const TaskCard = ({
   task: Task;
   isStatusComplete?: boolean;
 }) => {
-  const [isRunning, setIsRunning] = useState(false);
-  const [sessionSeconds, setSessionSeconds] = useState(0);
-  const queryClient = useQueryClient();
-
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval>;
-    if (isRunning) {
-      interval = setInterval(() => {
-        setSessionSeconds((p) => p + 1);
-      }, 1000);
-    }
-    return () => clearInterval(interval);
-  }, [isRunning]);
-
-  const updateTaskLoggedTimeMutation = useMutation({
-    mutationFn: (newLoggedTime: number) =>
-      updateTaskLoggedTime({ id: task.id, loggedTime: newLoggedTime }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-    },
+  const {
+    isRunning,
+    toggleTimer,
+    isUpdatingLoggedTime,
+    currentDisplayTime,
+  } = useTaskTimer({
+    taskId: task.id,
+    loggedTime: task.loggedTime || 0,
   });
-
-  const toggleTimer = () => {
-    if (isRunning) {
-      const newTotal = (task.loggedTime || 0) + sessionSeconds;
-      updateTaskLoggedTimeMutation.mutate(newTotal);
-      setIsRunning(false);
-      setSessionSeconds(0);
-    } else {
-      setIsRunning(true);
-    }
-  };
-
-  const formatTime = (totalSecs: number) => {
-    const min = Math.floor(totalSecs / 60);
-    const sec = totalSecs % 60;
-    return `${min.toString().padStart(2, "0")}:${sec.toString().padStart(2, "0")}`;
-  };
 
   const priorityStyles: Record<TaskPriority, string> = {
     High: "border-red-500/30 text-red-400 bg-red-500/10",
@@ -57,10 +26,6 @@ export const TaskCard = ({
     Low: "border-blue-500/30 text-blue-400 bg-blue-500/10",
     None: "border-gray-500/30 text-gray-400 bg-gray-500/10",
   };
-
-  const currentDisplayTime = formatTime(
-    (task.loggedTime || 0) + sessionSeconds,
-  );
 
   return (
     <>
@@ -99,7 +64,7 @@ export const TaskCard = ({
           {!isStatusComplete && (
             <button
               onClick={toggleTimer}
-              disabled={updateTaskLoggedTimeMutation.isPending}
+              disabled={isUpdatingLoggedTime}
               className="ml-1 p-1 rounded hover:bg-muted transition"
             >
               {isRunning ? (
