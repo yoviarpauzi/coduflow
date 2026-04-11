@@ -1,13 +1,13 @@
 import { useDroppable } from "@dnd-kit/core";
 
-const DroppableColumnBody = ({
-  columnId,
+const DroppableStatusBody = ({
+  statusId,
   children,
 }: {
-  columnId: string;
+  statusId: string;
   children: React.ReactNode;
 }) => {
-  const { setNodeRef } = useDroppable({ id: `droppable-${columnId}` });
+  const { setNodeRef } = useDroppable({ id: `droppable-${statusId}` });
   return (
     <div ref={setNodeRef} className="flex flex-col gap-2 min-h-25 flex-1">
       {children}
@@ -15,4 +15,4 @@ const DroppableColumnBody = ({
   );
 };
 
-export default DroppableColumnBody;
+export default DroppableStatusBody;

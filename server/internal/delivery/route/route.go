@@ -6,8 +6,9 @@ import (
 )
 
 type RouteConfig struct {
-	App         *fiber.App
-	TaskHandler *handler.TaskHandler
+	App               *fiber.App
+	TaskHandler       *handler.TaskHandler
+	TaskStatusHandler *handler.TaskStatusHandler
 }
 
 func (c *RouteConfig) Setup() {
@@ -15,6 +16,11 @@ func (c *RouteConfig) Setup() {
 		App:         c.App,
 		TaskHandler: c.TaskHandler,
 	}
-
 	taskRoute.Setup()
+
+	taskStatusRoute := TaskStatusRouteConfig{
+		App:               c.App,
+		TaskStatusHandler: c.TaskStatusHandler,
+	}
+	taskStatusRoute.Setup()
 }

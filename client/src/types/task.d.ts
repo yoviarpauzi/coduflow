@@ -15,5 +15,7 @@ export interface Task {
   members: Member[];
   attachments: number;
   comments: number;
-  columnId: string;
+  taskStatusId: string;
+  position: number;
+  loggedTime: number;
 }

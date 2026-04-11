@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"net"
 	"strconv"
 
@@ -28,6 +29,10 @@ func NewRedisStorage(config *viper.Viper, log *zap.Logger) *redisStore.Storage {
 		Password: config.GetString("REDIS_PASSWORD"),
 		Database: config.GetInt("REDIS_DB"),
 	})
+
+	if err = store.Conn().Ping(context.Background()).Err(); err != nil {
+		log.Fatal("failed to connect to redis", zap.Error(err))
+	}
 
 	return store
 }

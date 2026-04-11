@@ -44,26 +44,17 @@ func (h *TaskHandler) Create(c fiber.Ctx) error {
 		return response.HandleValidationError(c, err)
 	}
 
-	estimatedTime := 0
-	if req.EstimatedTime != nil {
-		estimatedTime = *req.EstimatedTime
-	}
-
-	loggedTime := 0
-	if req.LoggedTime != nil {
-		loggedTime = *req.LoggedTime
-	}
-
 	task := &entity.Task{
 		Name:          req.Name,
-		Status:        req.Status,
+		Description:   req.Description,
 		Priority:      req.Priority,
-		EstimatedTime: estimatedTime,
-		LoggedTime:    loggedTime,
+		EstimatedTime: req.EstimatedTime,
+		LoggedTime:    req.LoggedTime,
 		DueDate:       req.DueDate,
+		Position:      req.Position,
 	}
 
-	result, err := h.TaskUseCase.Create(c.Context(), task)
+	result, err := h.TaskUseCase.Create(c.Context(), req.TaskStatusID, task)
 
 	if err != nil {
 		middleware.AddLogContext(c, "msg", err)
@@ -77,6 +68,27 @@ func (h *TaskHandler) Create(c fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(response.SuccessResponse{
+		Success: true,
+		Data:    result,
+	})
+}
+
+func (h *TaskHandler) GetAll(c fiber.Ctx) error {
+	searchQuery := c.Query("search")
+	result, err := h.TaskUseCase.GetAll(c.Context(), searchQuery)
+
+	if err != nil {
+		middleware.AddLogContext(c, "msg", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "INTERNAL_SERVER_ERROR",
+				Message: "failed to get tasks",
+			},
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.SuccessResponse{
 		Success: true,
 		Data:    result,
 	})
@@ -112,7 +124,7 @@ func (h *TaskHandler) UpdateStatus(c fiber.Ctx) error {
 		return response.HandleValidationError(c, err)
 	}
 
-	result, err := h.TaskUseCase.UpdateStatus(c.Context(), id, &req.Status)
+	result, err := h.TaskUseCase.UpdateStatus(c.Context(), id, req.TaskStatusID)
 	if err != nil {
 		if errors.Is(err, customerror.ErrTaskNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
@@ -130,6 +142,188 @@ func (h *TaskHandler) UpdateStatus(c fiber.Ctx) error {
 			Error: response.ErrorDetail{
 				Code:    "INTERNAL_SERVER_ERROR",
 				Message: "failed to update task status",
+			},
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.SuccessResponse{
+		Success: true,
+		Data:    result,
+	})
+}
+
+func (h *TaskHandler) UpdatePosition(c fiber.Ctx) error {
+	id := c.Params("id")
+	if err := validateObjectID(c, id); err != nil {
+		return c.Status(err.Code).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "BAD_REQUEST",
+				Message: err.Message,
+			},
+		})
+	}
+
+	req := new(request.UpdateTaskPositionRequest)
+
+	if err := c.Bind().Body(req); err != nil {
+		middleware.AddLogContext(c, "msg", err)
+		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "BAD_REQUEST",
+				Message: "cannot parse json",
+			},
+		})
+	}
+
+	if err := h.Validate.Struct(req); err != nil {
+		middleware.AddLogContext(c, "msg", "validation failed")
+		return response.HandleValidationError(c, err)
+	}
+
+	result, err := h.TaskUseCase.UpdatePosition(c.Context(), id, req.Position, req.TaskStatusID)
+	if err != nil {
+		if errors.Is(err, customerror.ErrTaskNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
+				Success: false,
+				Error: response.ErrorDetail{
+					Code:    "NOT_FOUND",
+					Message: "task not found",
+				},
+			})
+		}
+		middleware.AddLogContext(c, "msg", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "INTERNAL_SERVER_ERROR",
+				Message: "failed to update task position",
+			},
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.SuccessResponse{
+		Success: true,
+		Data:    result,
+	})
+}
+
+func (h *TaskHandler) UpdateLoggedTime(c fiber.Ctx) error {
+	id := c.Params("id")
+	if err := validateObjectID(c, id); err != nil {
+		return c.Status(err.Code).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "BAD_REQUEST",
+				Message: err.Message,
+			},
+		})
+	}
+
+	req := new(request.UpdateLoggedTimeTaskRequest)
+	if err := c.Bind().Body(req); err != nil {
+		middleware.AddLogContext(c, "msg", err)
+		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "BAD_REQUEST",
+				Message: "cannot parse json",
+			},
+		})
+	}
+
+	if err := h.Validate.Struct(req); err != nil {
+		middleware.AddLogContext(c, "msg", "validation failed")
+		return response.HandleValidationError(c, err)
+	}
+
+	result, err := h.TaskUseCase.UpdateLoggedTime(c.Context(), id, req.LoggedTime)
+	if err != nil {
+		if errors.Is(err, customerror.ErrTaskNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
+				Success: false,
+				Error: response.ErrorDetail{
+					Code:    "NOT_FOUND",
+					Message: "task not found",
+				},
+			})
+		}
+
+		middleware.AddLogContext(c, "msg", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "INTERNAL_SERVER_ERROR",
+				Message: "failed to update task logged time",
+			},
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.SuccessResponse{
+		Success: true,
+		Data:    result,
+	})
+}
+
+func (h *TaskHandler) Update(c fiber.Ctx) error {
+	id := c.Params("id")
+	if err := validateObjectID(c, id); err != nil {
+		return c.Status(err.Code).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "BAD_REQUEST",
+				Message: err.Message,
+			},
+		})
+	}
+
+	req := new(request.UpdateTaskRequest)
+
+	if err := c.Bind().Body(req); err != nil {
+		middleware.AddLogContext(c, "msg", err.Error())
+		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "BAD_REQUEST",
+				Message: "cannot parse json",
+			},
+		})
+	}
+
+	if err := h.Validate.Struct(req); err != nil {
+		middleware.AddLogContext(c, "msg", "validation failed")
+		return response.HandleValidationError(c, err)
+	}
+
+	task := &entity.Task{
+		Name:          *req.Name,
+		Description:   req.Description,
+		Priority:      req.Priority,
+		Position:      *req.Position,
+		EstimatedTime: req.EstimatedTime,
+		LoggedTime:    req.LoggedTime,
+		DueDate:       req.DueDate,
+	}
+
+	result, err := h.TaskUseCase.Update(c.Context(), id, *req.TaskStatusID, task)
+	if err != nil {
+		if errors.Is(err, customerror.ErrTaskNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
+				Success: false,
+				Error: response.ErrorDetail{
+					Code:    "NOT_FOUND",
+					Message: "task not found",
+				},
+			})
+		}
+
+		middleware.AddLogContext(c, "msg", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ErrorResponse{
+			Success: false,
+			Error: response.ErrorDetail{
+				Code:    "INTERNAL_SERVER_ERROR",
+				Message: "failed to update task",
 			},
 		})
 	}

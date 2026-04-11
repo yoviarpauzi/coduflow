@@ -7,9 +7,11 @@ import { useRef } from "react";
 
 const SortableTaskCard = ({
   task,
+  isStatusComplete,
   onMeasureWidth,
 }: {
   task: Task;
+  isStatusComplete?: boolean;
   onMeasureWidth: (width: number) => void;
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
@@ -51,7 +53,8 @@ const SortableTaskCard = ({
       >
         <GripVertical className="size-3.5 text-muted-foreground" />
       </button>
-      <TaskCard task={task} />
+
+      <TaskCard task={task} isStatusComplete={isStatusComplete} />
     </div>
   );
 };

@@ -22,14 +22,18 @@ type BootstrapConfig struct {
 
 func Bootstrap(config *BootstrapConfig) {
 	taskRepository := repository.NewTaskRepository(config.DB)
+	taskStatusRepository := repository.NewTaskStatusRepository(config.DB)
 
 	taskUseCase := usecase.NewTaskUseCase(taskRepository)
+	taskStatusUseCase := usecase.NewTaskStatusUseCase(taskStatusRepository)
 
 	taskHandler := handler.NewTaskHandler(config.Validate, taskUseCase)
+	taskStatusHandler := handler.NewTaskStatusHandler(config.Validate, taskStatusUseCase)
 
 	routeConfig := &route.RouteConfig{
-		App:         config.App,
-		TaskHandler: taskHandler,
+		App:               config.App,
+		TaskHandler:       taskHandler,
+		TaskStatusHandler: taskStatusHandler,
 	}
 
 	routeConfig.Setup()
