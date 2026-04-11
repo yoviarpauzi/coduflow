@@ -8,11 +8,11 @@ import {
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-} from "./ui/sidebar";
+} from "../ui/sidebar";
 import logo from "@/assets/images/logo.webp";
 import { Gauge, Kanban } from "lucide-react";
 
-const AppSidebar = () => {
+export const AppSidebar = () => {
   const location = useLocation();
 
   const navMain = [
@@ -68,5 +68,3 @@ const AppSidebar = () => {
     </Sidebar>
   );
 };
-
-export default AppSidebar;

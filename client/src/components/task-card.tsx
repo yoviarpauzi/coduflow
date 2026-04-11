@@ -3,9 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Clock, Play, Pause } from "lucide-react";
 import type { Task, TaskPriority } from "@/types/task";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { updateLoggedTime } from "@/lib/api/task";
+import { updateTaskLoggedTime } from "@/lib/api/task";
 
-const TaskCard = ({
+export const TaskCard = ({
   task,
   isStatusComplete = false,
 }: {
@@ -26,9 +26,9 @@ const TaskCard = ({
     return () => clearInterval(interval);
   }, [isRunning]);
 
-  const updateLoggedTimeMutation = useMutation({
+  const updateTaskLoggedTimeMutation = useMutation({
     mutationFn: (newLoggedTime: number) =>
-      updateLoggedTime(task.id, newLoggedTime),
+      updateTaskLoggedTime({ id: task.id, loggedTime: newLoggedTime }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
     },
@@ -37,7 +37,7 @@ const TaskCard = ({
   const toggleTimer = () => {
     if (isRunning) {
       const newTotal = (task.loggedTime || 0) + sessionSeconds;
-      updateLoggedTimeMutation.mutate(newTotal);
+      updateTaskLoggedTimeMutation.mutate(newTotal);
       setIsRunning(false);
       setSessionSeconds(0);
     } else {
@@ -99,7 +99,7 @@ const TaskCard = ({
           {!isStatusComplete && (
             <button
               onClick={toggleTimer}
-              disabled={updateLoggedTimeMutation.isPending}
+              disabled={updateTaskLoggedTimeMutation.isPending}
               className="ml-1 p-1 rounded hover:bg-muted transition"
             >
               {isRunning ? (
@@ -114,5 +114,3 @@ const TaskCard = ({
     </>
   );
 };
-
-export default TaskCard;

@@ -10,7 +10,7 @@ import DroppableStatusBody from "./droppable-status-body";
 import SortableTaskCard from "./sortable-taskcard";
 import { GripVertical, Plus, Trash2, Pencil } from "lucide-react";
 
-import type { Status } from "@/types/status";
+import type { TaskStatus } from "@/types/task-status";
 
 const SortableStatus = ({
   status,
@@ -18,16 +18,16 @@ const SortableStatus = ({
   isStatusDragging,
   onMeasureTaskWidth,
   onAddTask,
-  onDeleteStatus,
-  onEditStatus,
+  ondeleteTaskStatus,
+  onEditTaskStatus,
 }: {
-  status: Status;
+  status: TaskStatus;
   tasks: Task[];
   isStatusDragging: boolean;
   onMeasureTaskWidth: (width: number) => void;
   onAddTask: (statusId: string) => void;
-  onDeleteStatus: (statusId: string) => void;
-  onEditStatus: (status: Status) => void;
+  ondeleteTaskStatus: (statusId: string) => void;
+  onEditTaskStatus?: (taskStatus: TaskStatus) => void;
 }) => {
   const {
     attributes,
@@ -63,12 +63,12 @@ const SortableStatus = ({
           >
             <GripVertical className="size-3.5" />
           </button>
-          {onEditStatus && (
+          {onEditTaskStatus && (
             <Button
               variant="ghost"
               size="icon"
               className="size-7 text-muted-foreground hover:text-foreground hover:bg-muted"
-              onClick={() => onEditStatus(status)}
+              onClick={() => onEditTaskStatus(status)}
             >
               <Pencil className="size-3.5" />
             </Button>
@@ -77,7 +77,7 @@ const SortableStatus = ({
             variant="ghost"
             size="icon"
             className="size-7 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-            onClick={() => onDeleteStatus(status.id)}
+            onClick={() => ondeleteTaskStatus(status.id)}
           >
             <Trash2 className="size-3.5" />
           </Button>

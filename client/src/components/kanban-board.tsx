@@ -15,19 +15,14 @@ import {
   horizontalListSortingStrategy,
   arrayMove,
 } from "@dnd-kit/sortable";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useSearch } from "@tanstack/react-router";
 import SortableStatus from "./sortable-status";
-import TaskCard from "./task-card";
-import {
-  getStatuses,
-  deleteStatus,
-  updateStatus,
-  patchStatusPosition,
-} from "@/lib/api/task-status";
-import { getTasks, createTask, patchTaskPosition } from "@/lib/api/task";
+import { TaskCard } from "./task-card";
+import { getTaskStatus } from "@/lib/api/task-status";
+import { getTasks } from "@/lib/api/task";
 import type { Task } from "@/types/task";
-import type { Status } from "@/types/status";
+import type { TaskStatus } from "@/types/task-status";
 
 import {
   Dialog,
@@ -39,34 +34,52 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "./ui/checkbox";
+import { useTaskMutation } from "@/hooks/use-task-mutation";
+import { useTaskStatusMutation } from "@/hooks/use-task-status-mutation";
+import { TaskStatusDialogForm } from "@/components/task-status-dialog-form";
 
 type ActiveItem =
-  | { type: "status"; status: Status }
+  | { type: "status"; status: TaskStatus }
   | { type: "task"; task: Task };
 
 export function KanbanBoard() {
-  const [statuses, setStatuses] = useState<Status[]>([]);
+  const [statuses, setStatuses] = useState<TaskStatus[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activeItem, setActiveItem] = useState<ActiveItem | null>(null);
   const [dragWidth, setDragWidth] = useState<number>(300);
 
   // Track pending status change during drag-over so we can persist it on drag-end
-  const pendingStatusChange = useRef<{ taskId: string; newStatusId: string } | null>(null);
+  const pendingStatusChange = useRef<{
+    taskId: string;
+    newStatusId: string;
+  } | null>(null);
 
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [taskStatusId, setTaskStatusId] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [isTaskStatusDialogOpen, setIsTaskStatusDialogOpen] = useState(false);
+  const [editingTaskStatusId, setEditingTaskStatusId] = useState<string | null>(
+    null,
+  );
+  const [editingTaskStatusTitle, setEditingTaskStatusTitle] = useState("");
+  const [editingTaskStatusIsComplete, setEditingTaskStatusIsComplete] =
+    useState(false);
 
-  const [isEditStatusDialogOpen, setIsEditStatusDialogOpen] = useState(false);
-  const [editingStatus, setEditingStatus] = useState<Status | null>(null);
-  const [editStatusTitle, setEditStatusTitle] = useState("");
-  const [editStatusIsComplete, setEditStatusIsComplete] = useState(false);
-
-  const queryClient = useQueryClient();
   const searchQuery = useSearch({ strict: false });
   const search = (searchQuery.search as string) ?? "";
+  const {
+    createTask,
+    updateTaskPosition,
+    isCreating: isCreatingTask,
+    isUpdatingPosition: isUpdatingTaskPosition,
+  } = useTaskMutation();
+  const {
+    updateTaskStatus,
+    updateTaskStatusPosition,
+    deleteTaskStatus,
+    isUpdating: isUpdatingTaskStatus,
+  } = useTaskStatusMutation();
 
   const [debouncedSearch, setDebouncedSearch] = useState(search);
 
@@ -80,11 +93,11 @@ export function KanbanBoard() {
 
   const { data: fetchedStatuses } = useQuery({
     queryKey: ["statuses"],
-    queryFn: getStatuses,
+    queryFn: getTaskStatus,
   });
   const { data: fetchedTasks } = useQuery({
     queryKey: ["tasks", debouncedSearch],
-    queryFn: () => getTasks(debouncedSearch),
+    queryFn: () => getTasks({ search: debouncedSearch }),
   });
 
   useEffect(() => {
@@ -94,63 +107,6 @@ export function KanbanBoard() {
   useEffect(() => {
     if (fetchedTasks) setTasks(fetchedTasks);
   }, [fetchedTasks]);
-
-  const updateStatusMutation = useMutation({
-    mutationFn: ({ statusId, payload }: { statusId: string; payload: any }) =>
-      updateStatus(statusId, payload),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["statuses"] });
-      setIsEditStatusDialogOpen(false);
-    },
-  });
-
-  const createTaskMutation = useMutation({
-    mutationFn: ({
-      name,
-      taskStatusId,
-      position,
-      description,
-    }: {
-      name: string;
-      taskStatusId: string;
-      position: number;
-      description?: string;
-    }) => createTask(name, taskStatusId, position, description),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      setIsTaskDialogOpen(false);
-      setNewTaskTitle("");
-      setNewTaskDesc("");
-    },
-  });
-
-  const deleteStatusMutation = useMutation({
-    mutationFn: (statusId: string) => deleteStatus(statusId),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["statuses"] }),
-  });
-
-  const updateStatusPositionMutation = useMutation({
-    mutationFn: ({
-      statusId,
-      position,
-    }: {
-      statusId: string;
-      position: number;
-    }) => patchStatusPosition(statusId, position),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["statuses"] }),
-  });
-
-  const updateTaskPositionMutation = useMutation({
-    mutationFn: ({
-      taskId,
-      position,
-      taskStatusId,
-    }: {
-      taskId: string;
-      position: number;
-      taskStatusId: string;
-    }) => patchTaskPosition(taskId, position, taskStatusId),
-  });
 
   const tasksRef = useRef(tasks);
   tasksRef.current = tasks;
@@ -196,7 +152,9 @@ export function KanbanBoard() {
     pendingStatusChange.current = { taskId: activeId, newStatusId: overColId };
 
     setTasks((prev) =>
-      prev.map((t) => (t.id === activeId ? { ...t, taskStatusId: overColId } : t)),
+      prev.map((t) =>
+        t.id === activeId ? { ...t, taskStatusId: overColId } : t,
+      ),
     );
   };
 
@@ -214,14 +172,16 @@ export function KanbanBoard() {
         pendingStatusChange.current = null;
 
         const prevTasks = tasksRef.current;
-        const colTasks = prevTasks.filter((t) => t.taskStatusId === newStatusId);
+        const colTasks = prevTasks.filter(
+          (t) => t.taskStatusId === newStatusId,
+        );
         const newPosition =
           colTasks.length > 0
             ? colTasks[colTasks.length - 1].position + 65536
             : 65536;
 
-        updateTaskPositionMutation.mutate({
-          taskId,
+        updateTaskPosition({
+          id: taskId,
           position: newPosition,
           taskStatusId: newStatusId,
         });
@@ -251,8 +211,8 @@ export function KanbanBoard() {
         }
         newCols[newIdx].position = newPosition;
 
-        updateStatusPositionMutation.mutate({
-          statusId: activeId,
+        updateTaskStatusPosition({
+          id: activeId,
           position: newPosition,
         });
 
@@ -306,8 +266,8 @@ export function KanbanBoard() {
     }
     finalColTasks[newIdx].position = newPosition;
 
-    updateTaskPositionMutation.mutate({
-      taskId: activeId,
+    updateTaskPosition({
+      id: activeId,
       position: newPosition,
       taskStatusId: overColId,
     });
@@ -318,12 +278,50 @@ export function KanbanBoard() {
     setIsTaskDialogOpen(true);
   };
 
-  const handleDeleteStatus = (statusId: string) => {
+  const handledeleteTaskStatus = (statusId: string) => {
     if (
       confirm("Are you sure you want to delete this status and all its tasks?")
     ) {
-      deleteStatusMutation.mutate(statusId);
+      deleteTaskStatus({ id: statusId });
     }
+  };
+
+  const resetTaskStatusDialogState = () => {
+    setEditingTaskStatusId(null);
+    setEditingTaskStatusTitle("");
+    setEditingTaskStatusIsComplete(false);
+  };
+
+  const handleTaskStatusDialogOpenChange = (open: boolean) => {
+    setIsTaskStatusDialogOpen(open);
+    if (!open) {
+      resetTaskStatusDialogState();
+    }
+  };
+
+  const openEditTaskStatusDialog = (taskStatus: TaskStatus) => {
+    setEditingTaskStatusId(taskStatus.id);
+    setEditingTaskStatusTitle(taskStatus.title);
+    setEditingTaskStatusIsComplete(taskStatus.isComplete);
+    setIsTaskStatusDialogOpen(true);
+  };
+
+  const submitTaskStatusUpdate = () => {
+    if (!editingTaskStatusId || !editingTaskStatusTitle.trim()) return;
+
+    updateTaskStatus(
+      {
+        id: editingTaskStatusId,
+        title: editingTaskStatusTitle.trim(),
+        isComplete: editingTaskStatusIsComplete,
+      },
+      {
+        onSuccess: () => {
+          setIsTaskStatusDialogOpen(false);
+          resetTaskStatusDialogState();
+        },
+      },
+    );
   };
 
   const submitTask = () => {
@@ -333,31 +331,21 @@ export function KanbanBoard() {
       if (colTasks.length > 0) {
         insertPos = colTasks[colTasks.length - 1].position + 65536;
       }
-      createTaskMutation.mutate({
-        name: newTaskTitle,
-        taskStatusId: taskStatusId,
-        position: insertPos,
-        description: newTaskDesc,
-      });
-    }
-  };
-
-  const openEditStatus = (status: Status) => {
-    setEditingStatus(status);
-    setEditStatusTitle(status.title);
-    setEditStatusIsComplete(status.isComplete || false);
-    setIsEditStatusDialogOpen(true);
-  };
-
-  const handleEditStatusSubmit = () => {
-    if (editingStatus && editStatusTitle.trim()) {
-      updateStatusMutation.mutate({
-        statusId: editingStatus.id,
-        payload: {
-          title: editStatusTitle,
-          isComplete: editStatusIsComplete,
+      createTask(
+        {
+          name: newTaskTitle,
+          taskStatusId: taskStatusId,
+          position: insertPos,
+          description: newTaskDesc,
         },
-      });
+        {
+          onSuccess: () => {
+            setIsTaskDialogOpen(false);
+            setNewTaskTitle("");
+            setNewTaskDesc("");
+          },
+        },
+      );
     }
   };
 
@@ -383,8 +371,8 @@ export function KanbanBoard() {
                 isStatusDragging={isStatusDragging}
                 onMeasureTaskWidth={setDragWidth}
                 onAddTask={openAddTask}
-                onDeleteStatus={handleDeleteStatus}
-                onEditStatus={openEditStatus}
+                ondeleteTaskStatus={handledeleteTaskStatus}
+                onEditTaskStatus={openEditTaskStatusDialog}
               />
             ))}
           </div>
@@ -455,61 +443,27 @@ export function KanbanBoard() {
             </Button>
             <Button
               onClick={submitTask}
-              disabled={createTaskMutation.isPending || !newTaskTitle}
+              disabled={
+                isCreatingTask || isUpdatingTaskPosition || !newTaskTitle
+              }
             >
-              {createTaskMutation.isPending ? "Adding..." : "Add Task"}
+              {isCreatingTask ? "Adding..." : "Add Task"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={isEditStatusDialogOpen}
-        onOpenChange={setIsEditStatusDialogOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Status</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid gap-2">
-              <Label htmlFor="edit-col-title">Status Title</Label>
-              <Input
-                id="edit-col-title"
-                value={editStatusTitle}
-                onChange={(e) => setEditStatusTitle(e.target.value)}
-                autoFocus
-              />
-            </div>
-            <div className="flex items-center gap-2 mt-2">
-              <Checkbox
-                id="edit-col-iscomplete"
-                checked={editStatusIsComplete}
-                onCheckedChange={(checked: boolean) =>
-                  setEditStatusIsComplete(checked === true)
-                }
-              />
-              <Label htmlFor="edit-col-iscomplete" className="cursor-pointer">
-                Mark tasks in this status as Done
-              </Label>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsEditStatusDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEditStatusSubmit}
-              disabled={updateStatusMutation.isPending || !editStatusTitle}
-            >
-              {updateStatusMutation.isPending ? "Saving..." : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <TaskStatusDialogForm
+        open={isTaskStatusDialogOpen}
+        onOpenChange={handleTaskStatusDialogOpenChange}
+        mode="update"
+        title={editingTaskStatusTitle}
+        setTitle={setEditingTaskStatusTitle}
+        isComplete={editingTaskStatusIsComplete}
+        setIsComplete={setEditingTaskStatusIsComplete}
+        onSubmit={submitTaskStatusUpdate}
+        isSubmitting={isUpdatingTaskStatus}
+      />
     </>
   );
 }

@@ -43,7 +43,6 @@ export function SearchInput({ placeholder }: { placeholder: string }) {
 
   return (
     <>
-      {/* Mobile & Tablet */}
       <div className="lg:hidden relative">
         <Button
           ref={triggerRef}

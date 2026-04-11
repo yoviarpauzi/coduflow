@@ -1,6 +1,7 @@
-import type { Status } from "@/types/status";
+import { config } from "@/lib/config";
+import type { TaskStatus } from "@/types/task-status";
 
-const API_URL = "http://localhost:8080/api/v1/task-status";
+const API_URL = `${config.apiBaseUrl}/api/v1/task-status`;
 
 interface APIResponse<T> {
   success: boolean;
@@ -8,64 +9,90 @@ interface APIResponse<T> {
   error?: any;
 }
 
-export async function getStatuses(): Promise<Status[]> {
+export type CreateTaskStatusPayload = {
+  title: string;
+  position: number;
+  isComplete?: boolean;
+};
+
+export type UpdateTaskStatusPayload = {
+  id: string;
+  title?: string;
+  position?: number;
+  isComplete?: boolean;
+};
+
+export type UpdateTaskStatusPositionPayload = {
+  id: string;
+  position: number;
+};
+
+export async function getTaskStatus(): Promise<TaskStatus[]> {
   const response = await fetch(`${API_URL}`);
   if (!response.ok) throw new Error("Failed to fetch statuses");
-  const json: APIResponse<Status[]> = await response.json();
+  const json: APIResponse<TaskStatus[]> = await response.json();
   return json.data || [];
 }
 
-export async function createStatus(
-  title: string,
-  position: number,
-  isComplete: boolean = false,
-): Promise<Status> {
+export async function createStatus({
+  title,
+  position,
+  isComplete = false,
+}: CreateTaskStatusPayload): Promise<TaskStatus> {
   const response = await fetch(`${API_URL}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title, position, isComplete }),
   });
+
   if (!response.ok) throw new Error("Failed to create status");
-  const json: APIResponse<Status> = await response.json();
+
+  const json: APIResponse<TaskStatus> = await response.json();
   return json.data;
 }
 
-export async function updateStatus(
-  statusId: string,
-  payload: Partial<{
-    title: string;
-    position: number;
-    isComplete: boolean;
-  }>,
-): Promise<Status> {
-  const response = await fetch(`${API_URL}/${statusId}`, {
+export async function updateTaskStatus({
+  id,
+  ...payload
+}: UpdateTaskStatusPayload): Promise<TaskStatus> {
+  const response = await fetch(`${API_URL}/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
   });
+
   if (!response.ok) throw new Error("Failed to update status");
-  const json: APIResponse<Status> = await response.json();
+
+  const json: APIResponse<TaskStatus> = await response.json();
   return json.data;
 }
 
-export async function patchStatusPosition(
-  statusId: string,
-  position: number,
-): Promise<import("@/types/status").Status> {
-  const response = await fetch(`${API_URL}/${statusId}/position`, {
+export async function updateTaskStatusPosition({
+  id,
+  position,
+}: UpdateTaskStatusPositionPayload): Promise<TaskStatus> {
+  const response = await fetch(`${API_URL}/${id}/position`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ position }),
   });
+
   if (!response.ok) throw new Error("Failed to update status position");
-  const json = await response.json();
+
+  const json: APIResponse<TaskStatus> = await response.json();
   return json.data;
 }
 
-export async function deleteStatus(id: string): Promise<boolean> {
+export async function deleteTaskStatus({
+  id,
+}: {
+  id: string;
+}): Promise<boolean> {
   const response = await fetch(`${API_URL}/${id}`, {
     method: "DELETE",
   });
+
   if (!response.ok) throw new Error("Failed to delete status");
+
   return true;
 }
