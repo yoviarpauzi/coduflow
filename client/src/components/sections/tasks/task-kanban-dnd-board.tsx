@@ -1,14 +1,10 @@
-import {
-  DndContext,
-  DragOverlay,
-  closestCorners,
-} from "@dnd-kit/core";
+import { DndContext, DragOverlay, closestCorners } from "@dnd-kit/core";
 import { useMemo } from "react";
 import {
   SortableContext,
   horizontalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import SortableStatus from "@/components/sortable-status";
+import { SortableStatus } from "@/components/sortable-status";
 import { TaskCard } from "@/components/task-card";
 import type { TaskKanbanDndModel } from "@/types/task-ui-models";
 

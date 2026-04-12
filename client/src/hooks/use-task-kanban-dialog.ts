@@ -63,6 +63,7 @@ export const useTaskKanbanDialog = ({
   const taskDialog: TaskDialogModel = {
     open: isTaskDialogOpen,
     onOpenChange: setIsTaskDialogOpen,
+    mode: "create",
     title: newTaskTitle,
     setTitle: setNewTaskTitle,
     description: newTaskDesc,

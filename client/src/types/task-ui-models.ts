@@ -30,6 +30,7 @@ export type TaskKanbanDndModel = {
 export type TaskDialogModel = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode: "create" | "update";
   title: string;
   setTitle: (value: string) => void;
   description: string;

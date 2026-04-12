@@ -5,7 +5,7 @@ import { TaskCard } from "./task-card";
 import type { Task } from "@/types/task";
 import { useRef } from "react";
 
-const SortableTaskCard = ({
+export const SortableTaskCard = ({
   task,
   isStatusComplete,
   onMeasureWidth,
@@ -58,5 +58,3 @@ const SortableTaskCard = ({
     </div>
   );
 };
-
-export default SortableTaskCard;

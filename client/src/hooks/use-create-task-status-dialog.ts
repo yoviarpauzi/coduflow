@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { getTaskStatus } from "@/lib/api/task-status";
+import { tasksKeys } from "@/lib/query-keys/tasks";
 import { useTaskStatusMutation } from "@/hooks/use-task-status-mutation";
 import type { CreateTaskStatusDialogModel } from "@/types/task-ui-models";
 
@@ -11,7 +12,7 @@ export const useCreateTaskStatusDialog = () => {
   const { createStatus, isCreating } = useTaskStatusMutation();
 
   const { data: taskStatuses } = useQuery({
-    queryKey: ["statuses"],
+    queryKey: tasksKeys.statuses,
     queryFn: getTaskStatus,
   });
 

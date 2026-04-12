@@ -7,12 +7,12 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import DroppableStatusBody from "./droppable-status-body";
-import SortableTaskCard from "./sortable-taskcard";
+import { SortableTaskCard } from "./sortable-taskcard";
 import { GripVertical, Plus, Trash2, Pencil } from "lucide-react";
 
 import type { TaskStatus } from "@/types/task-status";
 
-const SortableStatus = ({
+export const SortableStatus = ({
   status,
   tasks,
   isStatusDragging,
@@ -112,5 +112,3 @@ const SortableStatus = ({
     </div>
   );
 };
-
-export default SortableStatus;

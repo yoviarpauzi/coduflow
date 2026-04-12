@@ -5,7 +5,7 @@ import { Input } from "./ui/input";
 import { Button } from "@/components/ui/button";
 import { useTaskSearchQuery } from "@/hooks/use-task-search-query";
 
-export function SearchInput({ placeholder }: { placeholder: string }) {
+export const SearchInput = ({ placeholder }: { placeholder: string }) => {
   const [open, setOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { value, setValue } = useTaskSearchQuery();
@@ -66,7 +66,7 @@ export function SearchInput({ placeholder }: { placeholder: string }) {
       </div>
     </>
   );
-}
+};
 
 type SearchFieldProps = {
   id: string;
@@ -79,7 +79,7 @@ type SearchFieldProps = {
   autoFocus?: boolean;
 };
 
-function SearchField({
+const SearchField = ({
   id,
   placeholder,
   value,
@@ -88,7 +88,7 @@ function SearchField({
   inputRef,
   compact = false,
   autoFocus = false,
-}: SearchFieldProps) {
+}: SearchFieldProps) => {
   return (
     <div className="relative">
       <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 opacity-50 z-10" />
@@ -117,4 +117,4 @@ function SearchField({
       )}
     </div>
   );
-}
+};

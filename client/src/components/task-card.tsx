@@ -10,15 +10,11 @@ export const TaskCard = ({
   task: Task;
   isStatusComplete?: boolean;
 }) => {
-  const {
-    isRunning,
-    toggleTimer,
-    isUpdatingLoggedTime,
-    currentDisplayTime,
-  } = useTaskTimer({
-    taskId: task.id,
-    loggedTime: task.loggedTime || 0,
-  });
+  const { isRunning, toggleTimer, isUpdatingLoggedTime, currentDisplayTime } =
+    useTaskTimer({
+      taskId: task.id,
+      loggedTime: task.loggedTime || 0,
+    });
 
   const priorityStyles: Record<TaskPriority, string> = {
     High: "border-red-500/30 text-red-400 bg-red-500/10",

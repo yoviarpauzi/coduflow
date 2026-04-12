@@ -11,6 +11,7 @@ import { TaskForm } from "@/components/task-form";
 type TaskDialogFormProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  mode?: "create" | "update";
   title: string;
   setTitle: (value: string) => void;
   description: string;
@@ -23,6 +24,7 @@ type TaskDialogFormProps = {
 export const TaskDialogForm = ({
   open,
   onOpenChange,
+  mode = "create",
   title,
   setTitle,
   description,
@@ -31,13 +33,17 @@ export const TaskDialogForm = ({
   isSubmitting,
   disableSubmit = false,
 }: TaskDialogFormProps) => {
+  const isUpdateMode = mode === "update";
   const formId = "task-dialog-form";
+  const dialogTitle = isUpdateMode ? "Update Task" : "Add New Task";
+  const submitLabel = isUpdateMode ? "Update Task" : "Add Task";
+  const submittingLabel = isUpdateMode ? "Updating..." : "Adding...";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New Task</DialogTitle>
+          <DialogTitle>{dialogTitle}</DialogTitle>
         </DialogHeader>
         <TaskForm
           id={formId}
@@ -56,7 +62,7 @@ export const TaskDialogForm = ({
             form={formId}
             disabled={isSubmitting || disableSubmit}
           >
-            {isSubmitting ? "Adding..." : "Add Task"}
+            {isSubmitting ? submittingLabel : submitLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

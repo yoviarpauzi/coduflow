@@ -14,7 +14,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
-import { getAppendPosition, getPositionAtIndex } from "@/lib/kanban-position";
+import { getPositionAtIndex } from "@/lib/kanban-position";
 import type { Task } from "@/types/task";
 import type { TaskStatus } from "@/types/task-status";
 import type { ActiveItem, TaskKanbanDndModel } from "@/types/task-ui-models";
@@ -114,20 +114,15 @@ export const useTaskKanbanDnd = ({
     const activeId = String(active.id);
     const activeType = active.data.current?.type;
 
-    if (!over || String(over.id) === activeId) {
-      if (pendingStatusChange.current && activeType === "task") {
-        const { taskId, newStatusId } = pendingStatusChange.current;
-        pendingStatusChange.current = null;
+    if (!over) {
+      pendingStatusChange.current = null;
+      return;
+    }
 
-        const colTasks = tasksRef.current.filter(
-          (task) => task.taskStatusId === newStatusId,
-        );
-        updateTaskPosition({
-          id: taskId,
-          position: getAppendPosition(colTasks),
-          taskStatusId: newStatusId,
-        });
-      }
+    const hasStatusChange = Boolean(pendingStatusChange.current);
+    const isSameTarget = String(over.id) === activeId;
+    if (isSameTarget && !hasStatusChange) {
+      pendingStatusChange.current = null;
       return;
     }
 
@@ -140,9 +135,14 @@ export const useTaskKanbanDnd = ({
         const newIdx = prev.findIndex((status) => status.id === overId);
         if (oldIdx === -1 || newIdx === -1) return prev;
 
-        const reorderedStatuses = arrayMove(prev, oldIdx, newIdx);
+        const reorderedStatuses = arrayMove(prev, oldIdx, newIdx).map((status) => ({
+          ...status,
+        }));
         const newPosition = getPositionAtIndex(reorderedStatuses, newIdx);
-        reorderedStatuses[newIdx].position = newPosition;
+        reorderedStatuses[newIdx] = {
+          ...reorderedStatuses[newIdx],
+          position: newPosition,
+        };
         updateTaskStatusPosition({ id: activeId, position: newPosition });
         return reorderedStatuses;
       });
@@ -178,10 +178,11 @@ export const useTaskKanbanDnd = ({
       finalStatusTasks = arrayMove(statusTasks, oldIdx, newIdx);
     }
 
-    setTasks([...otherTasks, ...finalStatusTasks]);
-
     const newPosition = getPositionAtIndex(finalStatusTasks, newIdx);
-    finalStatusTasks[newIdx].position = newPosition;
+    const nextStatusTasks = finalStatusTasks.map((task, idx) =>
+      idx === newIdx ? { ...task, position: newPosition } : task,
+    );
+    setTasks([...otherTasks, ...nextStatusTasks]);
     updateTaskPosition({
       id: activeId,
       position: newPosition,
