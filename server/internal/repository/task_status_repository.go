@@ -61,6 +61,24 @@ func (r *TaskStatusRepositoryImpl) GetAll(ctx context.Context) ([]entity.TaskSta
 	return taskStatuses, nil
 }
 
+func (r *TaskStatusRepositoryImpl) GetByID(ctx context.Context, id string) (*entity.TaskStatus, error) {
+	objectID, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid id: %w", err)
+	}
+
+	var taskStatus entity.TaskStatus
+	err = r.DB.Collection("task_statuses").FindOne(ctx, bson.M{"_id": objectID}).Decode(&taskStatus)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, customerror.ErrStatusNotFound
+		}
+		return nil, err
+	}
+
+	return &taskStatus, nil
+}
+
 func (r *TaskStatusRepositoryImpl) Update(ctx context.Context, id string, taskStatus *entity.TaskStatus) (*entity.TaskStatus, error) {
 	now := time.Now()
 

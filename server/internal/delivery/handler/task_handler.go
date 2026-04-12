@@ -28,20 +28,11 @@ func NewTaskHandler(validate *validator.Validate, taskUseCase domainUseCase.Task
 func (h *TaskHandler) Create(c fiber.Ctx) error {
 	req := new(request.CreateTaskRequest)
 
-	if err := c.Bind().Body(req); err != nil {
-		middleware.AddLogContext(c, "msg", err.Error())
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
-			},
-		})
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
 	}
-
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if err := validateTaskStatusID(req.TaskStatusID); err != nil {
+		return badRequestError(c, err.Message)
 	}
 
 	task := &entity.Task{
@@ -96,32 +87,17 @@ func (h *TaskHandler) GetAll(c fiber.Ctx) error {
 
 func (h *TaskHandler) UpdateStatus(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	req := new(request.UpdateStatusTaskRequest)
 
-	if err := c.Bind().Body(req); err != nil {
-		middleware.AddLogContext(c, "msg", err)
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
-			},
-		})
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
 	}
-
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if err := validateTaskStatusID(req.TaskStatusID); err != nil {
+		return badRequestError(c, err.Message)
 	}
 
 	result, err := h.TaskUseCase.UpdateStatus(c.Context(), id, req.TaskStatusID)
@@ -154,32 +130,17 @@ func (h *TaskHandler) UpdateStatus(c fiber.Ctx) error {
 
 func (h *TaskHandler) UpdatePosition(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	req := new(request.UpdateTaskPositionRequest)
 
-	if err := c.Bind().Body(req); err != nil {
-		middleware.AddLogContext(c, "msg", err)
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
-			},
-		})
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
 	}
-
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if err := validateTaskStatusID(req.TaskStatusID); err != nil {
+		return badRequestError(c, err.Message)
 	}
 
 	result, err := h.TaskUseCase.UpdatePosition(c.Context(), id, req.Position, req.TaskStatusID)
@@ -211,31 +172,13 @@ func (h *TaskHandler) UpdatePosition(c fiber.Ctx) error {
 
 func (h *TaskHandler) UpdateLoggedTime(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	req := new(request.UpdateLoggedTimeTaskRequest)
-	if err := c.Bind().Body(req); err != nil {
-		middleware.AddLogContext(c, "msg", err)
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
-			},
-		})
-	}
-
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
 	}
 
 	result, err := h.TaskUseCase.UpdateLoggedTime(c.Context(), id, req.LoggedTime)
@@ -268,45 +211,51 @@ func (h *TaskHandler) UpdateLoggedTime(c fiber.Ctx) error {
 
 func (h *TaskHandler) Update(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	req := new(request.UpdateTaskRequest)
 
-	if err := c.Bind().Body(req); err != nil {
-		middleware.AddLogContext(c, "msg", err.Error())
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
+	}
+	if err := validateOptionalTaskStatusID(req.TaskStatusID); err != nil {
+		return badRequestError(c, err.Message)
+	}
+
+	existingTask, err := h.TaskUseCase.GetByID(c.Context(), id)
+	if err != nil {
+		if errors.Is(err, customerror.ErrTaskNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
+				Success: false,
+				Error: response.ErrorDetail{
+					Code:    "NOT_FOUND",
+					Message: "task not found",
+				},
+			})
+		}
+
+		middleware.AddLogContext(c, "msg", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ErrorResponse{
 			Success: false,
 			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
+				Code:    "INTERNAL_SERVER_ERROR",
+				Message: "failed to get task",
 			},
 		})
 	}
 
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if isTaskUpdateNoOp(req) {
+		return c.Status(fiber.StatusOK).JSON(response.SuccessResponse{
+			Success: true,
+			Data:    existingTask,
+		})
 	}
 
-	task := &entity.Task{
-		Name:          *req.Name,
-		Description:   req.Description,
-		Priority:      req.Priority,
-		Position:      *req.Position,
-		EstimatedTime: req.EstimatedTime,
-		LoggedTime:    req.LoggedTime,
-		DueDate:       req.DueDate,
-	}
+	taskStatusID, mergedTask := mergeTaskUpdate(existingTask, req)
 
-	result, err := h.TaskUseCase.Update(c.Context(), id, *req.TaskStatusID, task)
+	result, err := h.TaskUseCase.Update(c.Context(), id, taskStatusID, mergedTask)
 	if err != nil {
 		if errors.Is(err, customerror.ErrTaskNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
@@ -336,14 +285,8 @@ func (h *TaskHandler) Update(c fiber.Ctx) error {
 
 func (h *TaskHandler) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	err := h.TaskUseCase.Delete(c.Context(), id)

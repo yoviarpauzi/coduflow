@@ -9,12 +9,14 @@ type RouteConfig struct {
 	App               *fiber.App
 	TaskHandler       *handler.TaskHandler
 	TaskStatusHandler *handler.TaskStatusHandler
+	RedisStore        fiber.Storage
 }
 
 func (c *RouteConfig) Setup() {
 	taskRoute := TaskRouteConfig{
 		App:         c.App,
 		TaskHandler: c.TaskHandler,
+		RedisStore:  c.RedisStore,
 	}
 	taskRoute.Setup()
 

@@ -2,8 +2,6 @@ package entity
 
 import (
 	"time"
-
-	"go.mongodb.org/mongo-driver/v2/bson"
 )
 
 type TaskPriority int
@@ -17,8 +15,8 @@ const (
 )
 
 type Task struct {
-	ID            bson.ObjectID `bson:"_id,omitempty" json:"id"`
-	TaskStatusID  bson.ObjectID `bson:"task_status_id" json:"taskStatusId"`
+	ID            string        `json:"id"`
+	TaskStatusID  string        `json:"taskStatusId"`
 	Name          string        `bson:"name" json:"title"`
 	Description   *string       `bson:"description,omitempty" json:"description"`
 	Priority      *TaskPriority `bson:"priority,omitempty" json:"priority"`

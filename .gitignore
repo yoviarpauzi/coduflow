@@ -1,0 +1,12 @@
+# Generic agents
+.agents/
+.codex
+.claude/
+.claude.local/
+.claude/settings.local.json
+skills-lock.json
+.cursor/
+.github/copilot/
+.windsurf/
+.aider/
+.agent-os/

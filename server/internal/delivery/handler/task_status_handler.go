@@ -28,20 +28,8 @@ func NewTaskStatusHandler(validate *validator.Validate, statusUseCase domainUseC
 func (h *TaskStatusHandler) Create(c fiber.Ctx) error {
 	req := new(request.CreateStatusRequest)
 
-	if err := c.Bind().Body(req); err != nil {
-		middleware.AddLogContext(c, "msg", err.Error())
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
-			},
-		})
-	}
-
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
 	}
 
 	status := &entity.TaskStatus{
@@ -91,40 +79,48 @@ func (h *TaskStatusHandler) GetAll(c fiber.Ctx) error {
 
 func (h *TaskStatusHandler) Update(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	req := new(request.UpdateStatusRequest)
 
-	if err := c.Bind().Body(req); err != nil {
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
+	}
+
+	existingStatus, err := h.StatusUseCase.GetByID(c.Context(), id)
+	if err != nil {
+		if errors.Is(err, customerror.ErrStatusNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
+				Success: false,
+				Error: response.ErrorDetail{
+					Code:    "NOT_FOUND",
+					Message: "status not found",
+				},
+			})
+		}
+
 		middleware.AddLogContext(c, "msg", err)
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
+		return c.Status(fiber.StatusInternalServerError).JSON(response.ErrorResponse{
 			Success: false,
 			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
+				Code:    "INTERNAL_SERVER_ERROR",
+				Message: "failed to get status",
 			},
 		})
 	}
 
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if isTaskStatusUpdateNoOp(req) {
+		return c.Status(fiber.StatusOK).JSON(response.SuccessResponse{
+			Success: true,
+			Data:    existingStatus,
+		})
 	}
 
-	status := &entity.TaskStatus{
-		Title:      *req.Title,
-		IsComplete: *req.IsComplete,
-	}
+	mergedStatus := mergeTaskStatusUpdate(existingStatus, req)
 
-	result, err := h.StatusUseCase.Update(c.Context(), id, status)
+	result, err := h.StatusUseCase.Update(c.Context(), id, mergedStatus)
 	if err != nil {
 		if errors.Is(err, customerror.ErrStatusNotFound) {
 			return c.Status(fiber.StatusNotFound).JSON(response.ErrorResponse{
@@ -155,32 +151,14 @@ func (h *TaskStatusHandler) Update(c fiber.Ctx) error {
 // UpdatePosition handles a single status position update with server-side gap check.
 func (h *TaskStatusHandler) UpdatePosition(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	req := new(request.UpdateSinglePositionRequest)
 
-	if err := c.Bind().Body(req); err != nil {
-		middleware.AddLogContext(c, "msg", err)
-		return c.Status(fiber.StatusBadRequest).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: "cannot parse json",
-			},
-		})
-	}
-
-	if err := h.Validate.Struct(req); err != nil {
-		middleware.AddLogContext(c, "msg", "validation failed")
-		return response.HandleValidationError(c, err)
+	if err := bindAndValidateRequest(c, h.Validate, req); err != nil {
+		return err
 	}
 
 	result, err := h.StatusUseCase.UpdatePosition(c.Context(), id, req.Position)
@@ -212,14 +190,8 @@ func (h *TaskStatusHandler) UpdatePosition(c fiber.Ctx) error {
 
 func (h *TaskStatusHandler) Delete(c fiber.Ctx) error {
 	id := c.Params("id")
-	if err := validateObjectID(c, id); err != nil {
-		return c.Status(err.Code).JSON(response.ErrorResponse{
-			Success: false,
-			Error: response.ErrorDetail{
-				Code:    "BAD_REQUEST",
-				Message: err.Message,
-			},
-		})
+	if err := validatePathObjectID(c, id); err != nil {
+		return err
 	}
 
 	err := h.StatusUseCase.Delete(c.Context(), id)

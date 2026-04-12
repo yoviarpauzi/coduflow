@@ -19,8 +19,8 @@ func main() {
 	logger := config.NewLogger(viperConfig)
 	mongoClient := config.NewMongoClient(viperConfig, logger)
 	validate := config.NewValidator()
-	redisStorage := config.NewRedisStorage(viperConfig, logger)
-	app := config.NewFiber(viperConfig, logger, redisStorage)
+	redisStore := config.NewRedisStorage(viperConfig, logger)
+	app := config.NewFiber(viperConfig, logger)
 	pasetoToken, err := config.NewPaseto(viperConfig)
 
 	if err != nil {
@@ -32,7 +32,9 @@ func main() {
 		DB:          mongoClient.Database(viperConfig.GetString("DB_NAME")),
 		Validate:    validate,
 		Config:      viperConfig,
+		Log:         logger,
 		PasetoToken: pasetoToken,
+		RedisStore:  redisStore,
 	}
 
 	config.Bootstrap(bootstrapConfig)

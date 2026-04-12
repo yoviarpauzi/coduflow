@@ -18,10 +18,53 @@ type TaskRepositoryImpl struct {
 	DB *mongo.Database
 }
 
+type taskDocument struct {
+	ID            bson.ObjectID        `bson:"_id,omitempty"`
+	TaskStatusID  bson.ObjectID        `bson:"task_status_id"`
+	Name          string               `bson:"name"`
+	Description   *string              `bson:"description,omitempty"`
+	Priority      *entity.TaskPriority `bson:"priority,omitempty"`
+	Position      float64              `bson:"position"`
+	EstimatedTime *int                 `bson:"estimated_time,omitempty"`
+	LoggedTime    *int                 `bson:"logged_time,omitempty"`
+	DueDate       *time.Time           `bson:"due_date,omitempty"`
+	CreatedAt     time.Time            `bson:"created_at"`
+	UpdatedAt     *time.Time           `bson:"updated_at,omitempty"`
+}
+
 func NewTaskRepository(db *mongo.Database) domainRepository.TaskRepository {
 	return &TaskRepositoryImpl{
 		DB: db,
 	}
+}
+
+func taskDocumentToEntity(doc *taskDocument) *entity.Task {
+	if doc == nil {
+		return nil
+	}
+
+	return &entity.Task{
+		ID:            doc.ID.Hex(),
+		TaskStatusID:  doc.TaskStatusID.Hex(),
+		Name:          doc.Name,
+		Description:   doc.Description,
+		Priority:      doc.Priority,
+		Position:      doc.Position,
+		EstimatedTime: doc.EstimatedTime,
+		LoggedTime:    doc.LoggedTime,
+		DueDate:       doc.DueDate,
+		CreatedAt:     doc.CreatedAt,
+		UpdatedAt:     doc.UpdatedAt,
+	}
+}
+
+func taskDocumentsToEntities(docs []taskDocument) []entity.Task {
+	tasks := make([]entity.Task, 0, len(docs))
+	for i := range docs {
+		tasks = append(tasks, *taskDocumentToEntity(&docs[i]))
+	}
+
+	return tasks
 }
 
 func (r *TaskRepositoryImpl) Create(ctx context.Context, taskStatusID string, task *entity.Task) (*entity.Task, error) {
@@ -30,11 +73,19 @@ func (r *TaskRepositoryImpl) Create(ctx context.Context, taskStatusID string, ta
 		return nil, fmt.Errorf("invalid id: %w", err)
 	}
 
-	task.CreatedAt = time.Now()
-	task.TaskStatusID = objectTaskStatusID
+	doc := taskDocument{
+		TaskStatusID:  objectTaskStatusID,
+		Name:          task.Name,
+		Description:   task.Description,
+		Priority:      task.Priority,
+		Position:      task.Position,
+		EstimatedTime: task.EstimatedTime,
+		LoggedTime:    task.LoggedTime,
+		DueDate:       task.DueDate,
+		CreatedAt:     time.Now(),
+	}
 
-	result, err := r.DB.Collection("tasks").InsertOne(ctx, task)
-
+	result, err := r.DB.Collection("tasks").InsertOne(ctx, doc)
 	if err != nil {
 		return nil, err
 	}
@@ -44,9 +95,9 @@ func (r *TaskRepositoryImpl) Create(ctx context.Context, taskStatusID string, ta
 		return nil, fmt.Errorf("failed to cast inserted ID")
 	}
 
-	task.ID = id
+	doc.ID = id
 
-	return task, nil
+	return taskDocumentToEntity(&doc), nil
 }
 
 func (r *TaskRepositoryImpl) GetAll(ctx context.Context, search string) ([]entity.Task, error) {
@@ -63,16 +114,34 @@ func (r *TaskRepositoryImpl) GetAll(ctx context.Context, search string) ([]entit
 	}
 	defer cursor.Close(ctx)
 
-	var tasks []entity.Task
-	if err := cursor.All(ctx, &tasks); err != nil {
+	var taskDocs []taskDocument
+	if err := cursor.All(ctx, &taskDocs); err != nil {
 		return nil, err
 	}
 
-	if tasks == nil {
-		tasks = []entity.Task{}
+	if taskDocs == nil {
+		return []entity.Task{}, nil
 	}
 
-	return tasks, nil
+	return taskDocumentsToEntities(taskDocs), nil
+}
+
+func (r *TaskRepositoryImpl) GetByID(ctx context.Context, id string) (*entity.Task, error) {
+	objectID, err := bson.ObjectIDFromHex(id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid id: %w", err)
+	}
+
+	var taskDoc taskDocument
+	err = r.DB.Collection("tasks").FindOne(ctx, bson.M{"_id": objectID}).Decode(&taskDoc)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, customerror.ErrTaskNotFound
+		}
+		return nil, err
+	}
+
+	return taskDocumentToEntity(&taskDoc), nil
 }
 
 func (r *TaskRepositoryImpl) UpdateLoggedTime(ctx context.Context, id string, loggedTime int) (*entity.Task, error) {
@@ -83,10 +152,7 @@ func (r *TaskRepositoryImpl) UpdateLoggedTime(ctx context.Context, id string, lo
 		return nil, fmt.Errorf("invalid id: %w", err)
 	}
 
-	filter := bson.M{
-		"_id": objectID,
-	}
-
+	filter := bson.M{"_id": objectID}
 	update := bson.M{
 		"$set": bson.M{
 			"logged_time": loggedTime,
@@ -94,15 +160,10 @@ func (r *TaskRepositoryImpl) UpdateLoggedTime(ctx context.Context, id string, lo
 		},
 	}
 
-	opts := options.FindOneAndUpdate().
-		SetReturnDocument(options.After)
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
-	var task entity.Task
-
-	err = r.DB.Collection("tasks").
-		FindOneAndUpdate(ctx, filter, update, opts).
-		Decode(&task)
-
+	var taskDoc taskDocument
+	err = r.DB.Collection("tasks").FindOneAndUpdate(ctx, filter, update, opts).Decode(&taskDoc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, customerror.ErrTaskNotFound
@@ -110,7 +171,7 @@ func (r *TaskRepositoryImpl) UpdateLoggedTime(ctx context.Context, id string, lo
 		return nil, err
 	}
 
-	return &task, nil
+	return taskDocumentToEntity(&taskDoc), nil
 }
 
 func (r *TaskRepositoryImpl) UpdatePosition(ctx context.Context, id string, position float64, taskStatusID string) (*entity.Task, error) {
@@ -126,6 +187,14 @@ func (r *TaskRepositoryImpl) UpdatePosition(ctx context.Context, id string, posi
 		return nil, fmt.Errorf("invalid status_id: %w", err)
 	}
 
+	filter := bson.M{
+		"_id": objectID,
+		"$or": bson.A{
+			bson.M{"position": bson.M{"$ne": position}},
+			bson.M{"task_status_id": bson.M{"$ne": objectTaskStatusID}},
+		},
+	}
+
 	update := bson.M{
 		"$set": bson.M{
 			"position":       position,
@@ -136,19 +205,24 @@ func (r *TaskRepositoryImpl) UpdatePosition(ctx context.Context, id string, posi
 
 	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
-	var task entity.Task
-	err = r.DB.Collection("tasks").
-		FindOneAndUpdate(ctx, bson.M{"_id": objectID}, update, opts).
-		Decode(&task)
-
+	var taskDoc taskDocument
+	err = r.DB.Collection("tasks").FindOneAndUpdate(ctx, filter, update, opts).Decode(&taskDoc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			return nil, customerror.ErrTaskNotFound
+			err = r.DB.Collection("tasks").FindOne(ctx, bson.M{"_id": objectID}).Decode(&taskDoc)
+			if err != nil {
+				if errors.Is(err, mongo.ErrNoDocuments) {
+					return nil, customerror.ErrTaskNotFound
+				}
+				return nil, err
+			}
+
+			return taskDocumentToEntity(&taskDoc), nil
 		}
 		return nil, err
 	}
 
-	return &task, nil
+	return taskDocumentToEntity(&taskDoc), nil
 }
 
 func (r *TaskRepositoryImpl) UpdateStatus(ctx context.Context, id string, taskStatusID string) (*entity.Task, error) {
@@ -176,21 +250,13 @@ func (r *TaskRepositoryImpl) UpdateStatus(ctx context.Context, id string, taskSt
 		},
 	}
 
-	opts := options.FindOneAndUpdate().
-		SetReturnDocument(options.After)
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
-	var task entity.Task
-
-	err = r.DB.Collection("tasks").
-		FindOneAndUpdate(ctx, filter, update, opts).
-		Decode(&task)
-
+	var taskDoc taskDocument
+	err = r.DB.Collection("tasks").FindOneAndUpdate(ctx, filter, update, opts).Decode(&taskDoc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
-			err = r.DB.Collection("tasks").
-				FindOne(ctx, bson.M{"_id": objectID}).
-				Decode(&task)
-
+			err = r.DB.Collection("tasks").FindOne(ctx, bson.M{"_id": objectID}).Decode(&taskDoc)
 			if err != nil {
 				if errors.Is(err, mongo.ErrNoDocuments) {
 					return nil, customerror.ErrTaskNotFound
@@ -198,13 +264,13 @@ func (r *TaskRepositoryImpl) UpdateStatus(ctx context.Context, id string, taskSt
 				return nil, err
 			}
 
-			return &task, nil
+			return taskDocumentToEntity(&taskDoc), nil
 		}
 
 		return nil, err
 	}
 
-	return &task, nil
+	return taskDocumentToEntity(&taskDoc), nil
 }
 
 func (r *TaskRepositoryImpl) Update(ctx context.Context, id string, taskStatusID string, task *entity.Task) (*entity.Task, error) {
@@ -232,19 +298,11 @@ func (r *TaskRepositoryImpl) Update(ctx context.Context, id string, taskStatusID
 		{Key: "due_date", Value: task.DueDate},
 	}
 
-	update := bson.M{
-		"$set": setElements,
-	}
+	update := bson.M{"$set": setElements}
+	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
 
-	opts := options.FindOneAndUpdate().
-		SetReturnDocument(options.After)
-
-	var updatedTask entity.Task
-
-	err = r.DB.Collection("tasks").
-		FindOneAndUpdate(ctx, bson.M{"_id": objectID}, update, opts).
-		Decode(&updatedTask)
-
+	var updatedTaskDoc taskDocument
+	err = r.DB.Collection("tasks").FindOneAndUpdate(ctx, bson.M{"_id": objectID}, update, opts).Decode(&updatedTaskDoc)
 	if err != nil {
 		if errors.Is(err, mongo.ErrNoDocuments) {
 			return nil, customerror.ErrTaskNotFound
@@ -252,7 +310,7 @@ func (r *TaskRepositoryImpl) Update(ctx context.Context, id string, taskStatusID
 		return nil, err
 	}
 
-	return &updatedTask, nil
+	return taskDocumentToEntity(&updatedTaskDoc), nil
 }
 
 func (r *TaskRepositoryImpl) Delete(ctx context.Context, id string) error {
@@ -262,7 +320,6 @@ func (r *TaskRepositoryImpl) Delete(ctx context.Context, id string) error {
 	}
 
 	result := r.DB.Collection("tasks").FindOneAndDelete(ctx, bson.M{"_id": objectID})
-
 	if result.Err() != nil {
 		if errors.Is(result.Err(), mongo.ErrNoDocuments) {
 			return customerror.ErrTaskNotFound
@@ -289,16 +346,16 @@ func (r *TaskRepositoryImpl) RebalancePositions(ctx context.Context, taskStatusI
 	}
 	defer cursor.Close(ctx)
 
-	var tasks []entity.Task
-	if err := cursor.All(ctx, &tasks); err != nil {
+	var taskDocs []taskDocument
+	if err := cursor.All(ctx, &taskDocs); err != nil {
 		return err
 	}
 
 	var models []mongo.WriteModel
-	for i, task := range tasks {
+	for i, taskDoc := range taskDocs {
 		newPos := float64((i + 1) * 65536)
 		updateModel := mongo.NewUpdateOneModel().
-			SetFilter(bson.M{"_id": task.ID}).
+			SetFilter(bson.M{"_id": taskDoc.ID}).
 			SetUpdate(bson.M{"$set": bson.M{"position": newPos, "updated_at": time.Now()}})
 		models = append(models, updateModel)
 	}
@@ -318,25 +375,23 @@ func (r *TaskRepositoryImpl) GetNeighborPositions(ctx context.Context, taskStatu
 		return 0, 0, fmt.Errorf("invalid status_id: %w", parseErr)
 	}
 
-	// Find the largest position strictly less than `position`
 	prevFilter := bson.M{"task_status_id": objectTaskStatusID, "position": bson.M{"$lt": position}}
 	prevOpts := options.FindOne().SetSort(bson.D{{Key: "position", Value: -1}})
-	var prevTask entity.Task
-	prevErr := r.DB.Collection("tasks").FindOne(ctx, prevFilter, prevOpts).Decode(&prevTask)
+	var prevTaskDoc taskDocument
+	prevErr := r.DB.Collection("tasks").FindOne(ctx, prevFilter, prevOpts).Decode(&prevTaskDoc)
 	if prevErr != nil && !errors.Is(prevErr, mongo.ErrNoDocuments) {
 		return 0, 0, prevErr
 	}
-	prev = prevTask.Position
+	prev = prevTaskDoc.Position
 
-	// Find the smallest position strictly greater than `position`
 	nextFilter := bson.M{"task_status_id": objectTaskStatusID, "position": bson.M{"$gt": position}}
 	nextOpts := options.FindOne().SetSort(bson.D{{Key: "position", Value: 1}})
-	var nextTask entity.Task
-	nextErr := r.DB.Collection("tasks").FindOne(ctx, nextFilter, nextOpts).Decode(&nextTask)
+	var nextTaskDoc taskDocument
+	nextErr := r.DB.Collection("tasks").FindOne(ctx, nextFilter, nextOpts).Decode(&nextTaskDoc)
 	if nextErr != nil && !errors.Is(nextErr, mongo.ErrNoDocuments) {
 		return 0, 0, nextErr
 	}
-	next = nextTask.Position
+	next = nextTaskDoc.Position
 
 	return prev, next, nil
 }

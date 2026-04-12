@@ -11,7 +11,7 @@ func CreateIndexes(ctx context.Context, db *mongo.Database) error {
 	taskIndexes := []mongo.IndexModel{
 		{
 			Keys: bson.D{
-				{Key: "status", Value: 1},
+				{Key: "task_status_id", Value: 1},
 				{Key: "position", Value: 1},
 			},
 		},

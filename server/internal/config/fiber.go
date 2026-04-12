@@ -10,7 +10,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewFiber(config *viper.Viper, log *zap.Logger, fiberStorage fiber.Storage) *fiber.App {
+func NewFiber(config *viper.Viper, log *zap.Logger) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName: config.GetString("server.name"),
 	})

@@ -3,14 +3,14 @@ import { TaskKanbanDialogs } from "@/components/sections/tasks/task-kanban-dialo
 import { useTaskKanbanBoard } from "@/hooks/use-task-kanban-board";
 
 export function TaskKanbanBoard() {
-  const vm = useTaskKanbanBoard();
+  const { dnd, taskDialog, taskStatusDialog } = useTaskKanbanBoard();
 
   return (
     <>
-      <TaskKanbanDndBoard {...vm.dnd} />
+      <TaskKanbanDndBoard {...dnd} />
       <TaskKanbanDialogs
-        taskDialog={vm.taskDialog}
-        taskStatusDialog={vm.taskStatusDialog}
+        taskDialog={taskDialog}
+        taskStatusDialog={taskStatusDialog}
       />
     </>
   );

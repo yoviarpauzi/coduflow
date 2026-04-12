@@ -1,13 +1,17 @@
 package route
 
 import (
+	"time"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/yoviarpauzi/coduflow/server/internal/delivery/handler"
+	"github.com/yoviarpauzi/coduflow/server/internal/delivery/middleware"
 )
 
 type TaskRouteConfig struct {
 	App         *fiber.App
 	TaskHandler *handler.TaskHandler
+	RedisStore  fiber.Storage
 }
 
 func (c *TaskRouteConfig) Setup() {
@@ -15,7 +19,7 @@ func (c *TaskRouteConfig) Setup() {
 
 	task.Get("/", c.TaskHandler.GetAll)
 	task.Post("/", c.TaskHandler.Create)
-	task.Patch("/:id/position", c.TaskHandler.UpdatePosition)
+	task.Patch("/:id/position", middleware.NewLimiter(5, 1*time.Second, "kanban", c.RedisStore), c.TaskHandler.UpdatePosition)
 	task.Patch("/:id/logged-time", c.TaskHandler.UpdateLoggedTime)
 	task.Patch("/:id/status", c.TaskHandler.UpdateStatus)
 	task.Put("/:id", c.TaskHandler.Update)
