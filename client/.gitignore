@@ -23,4 +23,23 @@ dist-ssr
 *.sln
 *.sw?
 
+
+# Generic agents
 .agents/
+.codex
+.claude/
+.claude.local/
+.claude/settings.local.json
+skills-lock.json
+.cursor/
+.github/copilot/
+.windsurf/
+.aider/
+.agent-os/
+
+.env
+.env.*
+secrets/
+credentials/
+*.key
+*.pem
