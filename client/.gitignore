@@ -39,6 +39,7 @@ skills-lock.json
 
 .env
 .env.*
+!.env.example
 secrets/
 credentials/
 *.key
