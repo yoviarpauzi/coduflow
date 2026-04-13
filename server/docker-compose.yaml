@@ -1,17 +1,4 @@
 services:
-  mongo-init-keyfile:
-    image: alpine/openssl
-    user: root
-    volumes:
-      - keyfile_data:/data/keyfile
-    entrypoint:
-      [
-        "/bin/sh",
-        "-c",
-        "openssl rand -base64 756 > /data/keyfile/keyfile.key && chmod 400 /data/keyfile/keyfile.key && chown 999:999 /data/keyfile/keyfile.key && ls -la /data/keyfile/ && echo SUCCESS",
-      ]
-    restart: "no"
-
   mongodb:
     container_name: coduflow-mongodb
     image: mongodb/mongodb-community-server:7.0-ubi8
@@ -26,7 +13,7 @@ services:
     volumes:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
-      - keyfile_data:/data/keyfile
+      - ./keyfile.key:/data/keyfile/keyfile.key:ro
     command:
       [
         "mongod",
@@ -36,9 +23,6 @@ services:
         "/data/keyfile/keyfile.key",
         "--bind_ip_all",
       ]
-    depends_on:
-      mongo-init-keyfile:
-        condition: service_completed_successfully
     healthcheck:
       test:
         [
@@ -74,5 +58,4 @@ services:
 volumes:
   mongodb_data:
   mongodb_config:
-  keyfile_data:
   redis_data:
