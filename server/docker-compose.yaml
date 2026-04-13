@@ -1,14 +1,14 @@
 services:
   mongo-init-keyfile:
-    image: mongodb/mongodb-community-server:7.0-ubi8
+    image: alpine/openssl
     user: root
     volumes:
       - keyfile_data:/data/keyfile
     entrypoint:
       [
-        "/bin/bash",
+        "/bin/sh",
         "-c",
-        "openssl rand -base64 756 > /data/keyfile/keyfile.key && chmod 400 /data/keyfile/keyfile.key && chown 998:996 /data/keyfile/keyfile.key && ls -la /data/keyfile/ && echo SUCCESS",
+        "openssl rand -base64 756 > /data/keyfile/keyfile.key && chmod 400 /data/keyfile/keyfile.key && chown 999:999 /data/keyfile/keyfile.key && ls -la /data/keyfile/ && echo SUCCESS",
       ]
     restart: "no"
 
